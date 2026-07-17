@@ -28,13 +28,72 @@ document.addEventListener('DOMContentLoaded', () => {
     let upscaledObjectUrl = null;
     let originalObjectUrl = null;
     let gradioApp = null;
+    let fallbackApp = null;
 
-    async function getGradioApp() {
-        if (!gradioApp) {
-            console.log("Connecting to cloud CodeFormer space...");
-            gradioApp = await client("sczhou/CodeFormer");
+    async function getGradioApp(useFallback = false) {
+        if (useFallback) {
+            if (!fallbackApp) {
+                console.log("Connecting to fallback cloud space (akhaliq)...");
+                fallbackApp = await client("akhaliq/CodeFormer");
+            }
+            return fallbackApp;
+        } else {
+            if (!gradioApp) {
+                console.log("Connecting to main cloud space (sczhou)...");
+                gradioApp = await client("sczhou/CodeFormer");
+            }
+            return gradioApp;
         }
-        return gradioApp;
+    }
+
+    // Client-side image compression / downscaling helper to prevent GPU timeouts & HF rate limits
+    async function preprocessImage(file, maxDimension = 1600) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+                
+                if (width <= maxDimension && height <= maxDimension) {
+                    resolve(file);
+                    return;
+                }
+                
+                if (width > height) {
+                    if (width > maxDimension) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    }
+                } else {
+                    if (height > maxDimension) {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                    const originalName = file.name.substring(0, file.name.lastIndexOf('.'));
+                    const processedFile = new File([blob], `${originalName}_preprocessed.jpg`, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+                    resolve(processedFile);
+                }, 'image/jpeg', 0.92);
+            };
+            
+            img.onerror = () => {
+                resolve(file);
+            };
+            
+            img.src = URL.createObjectURL(file);
+        });
     }
 
     const modelDescriptions = {
@@ -146,17 +205,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const faceUpsample = (modelId === "codeformer-ultra-4x");
             const faceAlign = faceUpsample;
 
-            const app = await getGradioApp();
-            
-            console.log(`Calling cloud GPU API for ${modelId}...`);
-            const result = await app.predict("/inference", [
-                selectedFile,       // image (File object)
-                faceAlign,          // face_align (boolean)
-                true,               // background_enhance (boolean)
-                faceUpsample,       // face_upsample (boolean)
-                4.0,                // upscale factor (float)
-                0.6                 // codeformer_fidelity (float)
-            ]);
+            // Preprocess/downscale image client-side to prevent timeouts and HF rate limits
+            console.log("Preprocessing image client-side...");
+            const processedFile = await preprocessImage(selectedFile, 1600);
+
+            let app;
+            let result;
+            try {
+                app = await getGradioApp(false);
+                console.log(`Calling primary cloud GPU API for ${modelId}...`);
+                result = await app.predict("/inference", [
+                    processedFile,       // image (File object)
+                    faceAlign,          // face_align (boolean)
+                    true,               // background_enhance (boolean)
+                    faceUpsample,       // face_upsample (boolean)
+                    4.0,                // upscale factor (float)
+                    0.6                 // codeformer_fidelity (float)
+                ]);
+            } catch (firstError) {
+                console.warn("Primary space failed or busy, trying fallback space...", firstError);
+                app = await getGradioApp(true);
+                console.log(`Calling fallback cloud GPU API for ${modelId}...`);
+                result = await app.predict("/inference", [
+                    processedFile,       // image (File object)
+                    faceAlign,          // face_align (boolean)
+                    true,               // background_enhance (boolean)
+                    faceUpsample,       // face_upsample (boolean)
+                    4.0,                // upscale factor (float)
+                    0.6                 // codeformer_fidelity (float)
+                ]);
+            }
 
             const outputImg = result.data[0];
             if (!outputImg || (!outputImg.url && !outputImg.data)) {
