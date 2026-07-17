@@ -39,7 +39,7 @@ async def upscale(
         face_upsample = True if model_id == "codeformer-ultra-4x" else False
         face_align = True if model_id == "codeformer-ultra-4x" else False
         
-        result = None
+        output_img_path = None
         last_err = None
         
         # Attempt 1: Call primary space
@@ -55,6 +55,7 @@ async def upscale(
                 codeformer_fidelity=0.6,
                 api_name="/inference"
             )
+            output_img_path = result[0]
         except Exception as err1:
             print(f"Primary space failed (Attempt 1): {str(err1)}")
             last_err = err1
@@ -75,32 +76,29 @@ async def upscale(
                     codeformer_fidelity=0.6,
                     api_name="/inference"
                 )
+                output_img_path = result[0]
             except Exception as err2:
                 print(f"Primary space failed (Attempt 2): {str(err2)}")
                 last_err = err2
                 
-                # Attempt 3: Switch to fallback duplicate space
+                # Attempt 3: Switch to fallback duplicate space with its specific /predict endpoint
                 try:
                     print("Attempt 3: Trying fallback space (leonelhs/CodeFormer)...")
                     client = get_gradio_client(use_fallback=True)
                     result = client.predict(
                         image=handle_file(temp_path),
-                        face_align=face_align,
-                        background_enhance=True,
-                        face_upsample=face_upsample,
-                        upscale=4.0,
-                        codeformer_fidelity=0.6,
-                        api_name="/inference"
+                        api_name="/predict"
                     )
+                    # For leonelhs/CodeFormer, index 0 is the original and index 1 is the enhanced output
+                    output_img_path = result[1]
                 except Exception as err3:
                     print(f"Fallback space failed: {str(err3)}")
                     last_err = err3
 
-        if result is None:
+        if output_img_path is None:
             # Raise the final error encountered
             raise last_err
             
-        output_img_path = result[0]
         with open(output_img_path, "rb") as f:
             output_bytes = f.read()
             
