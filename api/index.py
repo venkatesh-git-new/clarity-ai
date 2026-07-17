@@ -135,7 +135,13 @@ async def upscale(
                     last_err = err3
 
         if output_img_path is None:
-            raise last_err
+            # Raise the exception with full traceback details to the client
+            import traceback
+            tb = traceback.format_exc()
+            raise HTTPException(
+                status_code=500,
+                detail=f"All attempts failed.\nPrimary Space Error: {str(last_err)}\nTraceback: {tb}"
+            )
             
         with open(output_img_path, "rb") as f:
             output_bytes = f.read()
@@ -147,12 +153,14 @@ async def upscale(
             
         return StreamingResponse(io.BytesIO(output_bytes), media_type="image/png")
         
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
-        traceback.print_exc()
+        tb = traceback.format_exc()
         raise HTTPException(
             status_code=500,
-            detail=f"Upscaling failed. The AI spaces are currently busy: {str(e)}"
+            detail=f"Upscaling failed: {str(e)}\nTraceback: {tb}"
         )
     finally:
         if temp_path and os.path.exists(temp_path):
