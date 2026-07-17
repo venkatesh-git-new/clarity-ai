@@ -4,6 +4,7 @@ import io
 import tempfile
 import os
 import time
+import urllib.request
 from gradio_client import Client, handle_file
 
 app = FastAPI()
@@ -13,7 +14,6 @@ _fallback_client = None
 
 def get_gradio_client(use_fallback=False):
     global _gradio_client, _fallback_client
-    # Read Hugging Face token from environment variables to bypass ZeroGPU limits
     hf_token = os.environ.get("HF_TOKEN")
     if hf_token:
         hf_token = hf_token.strip()
@@ -28,6 +28,48 @@ def get_gradio_client(use_fallback=False):
             print("Connecting to primary space (sczhou/CodeFormer)...")
             _gradio_client = Client("sczhou/CodeFormer", token=hf_token)
         return _gradio_client
+
+@app.get("/api/debug-image")
+async def debug_image():
+    temp_path = None
+    try:
+        # Download a low-res face image from Hugging Face Space inputs
+        low_res_url = "https://huggingface.co/spaces/sczhou/CodeFormer/resolve/main/inputs/cropped_faces/0010.png"
+        temp_path = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
+        print(f"Downloading test face image from {low_res_url}...")
+        urllib.request.urlretrieve(low_res_url, temp_path)
+        
+        client = get_gradio_client(use_fallback=False)
+        print("Calling CodeFormer API with upscale=4.0 for test image...")
+        result = client.predict(
+            image=handle_file(temp_path),
+            face_align=True,
+            background_enhance=True,
+            face_upsample=True,
+            upscale=4.0,
+            codeformer_fidelity=0.6,
+            api_name="/inference"
+        )
+        output_img_path = result[0]
+        with open(output_img_path, "rb") as f:
+            output_bytes = f.read()
+            
+        try:
+            os.unlink(output_img_path)
+        except:
+            pass
+            
+        return StreamingResponse(io.BytesIO(output_bytes), media_type="image/png")
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return JSONResponse(status_code=500, content={"error": str(e), "traceback": tb})
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
 
 @app.get("/api/debug")
 async def debug():
@@ -135,7 +177,6 @@ async def upscale(
                     last_err = err3
 
         if output_img_path is None:
-            # Raise the exception with full traceback details to the client
             import traceback
             tb = traceback.format_exc()
             raise HTTPException(
