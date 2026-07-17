@@ -21,12 +21,12 @@ def get_gradio_client(use_fallback=False):
     if use_fallback:
         if _fallback_client is None:
             print("Connecting to fallback space (leonelhs/CodeFormer)...")
-            _fallback_client = Client("leonelhs/CodeFormer", hf_token=hf_token)
+            _fallback_client = Client("leonelhs/CodeFormer", token=hf_token)
         return _fallback_client
     else:
         if _gradio_client is None:
             print("Connecting to primary space (sczhou/CodeFormer)...")
-            _gradio_client = Client("sczhou/CodeFormer", hf_token=hf_token)
+            _gradio_client = Client("sczhou/CodeFormer", token=hf_token)
         return _gradio_client
 
 @app.get("/api/debug")
