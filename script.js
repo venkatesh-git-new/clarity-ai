@@ -1,5 +1,3 @@
-import { client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
-
 document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
     const dropzone = document.getElementById('dropzone');
@@ -27,24 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDragging = false;
     let upscaledObjectUrl = null;
     let originalObjectUrl = null;
-    let gradioApp = null;
-    let fallbackApp = null;
-
-    async function getGradioApp(useFallback = false) {
-        if (useFallback) {
-            if (!fallbackApp) {
-                console.log("Connecting to fallback cloud space (akhaliq)...");
-                fallbackApp = await client("akhaliq/CodeFormer");
-            }
-            return fallbackApp;
-        } else {
-            if (!gradioApp) {
-                console.log("Connecting to main cloud space (sczhou)...");
-                gradioApp = await client("sczhou/CodeFormer");
-            }
-            return gradioApp;
-        }
-    }
 
     // Client-side image compression / downscaling helper to prevent GPU timeouts & HF rate limits
     async function preprocessImage(file, maxDimension = 1600) {
@@ -200,59 +180,26 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsSection.classList.add('hidden');
 
         try {
-            // Setup specific model parameters based on user selection
-            const modelId = modelSelect.value;
-            const faceUpsample = (modelId === "codeformer-ultra-4x");
-            const faceAlign = faceUpsample;
-
             // Preprocess/downscale image client-side to prevent timeouts and HF rate limits
             console.log("Preprocessing image client-side...");
             const processedFile = await preprocessImage(selectedFile, 1600);
 
-            let app;
-            let result;
-            try {
-                app = await getGradioApp(false);
-                console.log(`Calling primary cloud GPU API for ${modelId}...`);
-                result = await app.predict("/inference", [
-                    processedFile,       // image (File object)
-                    faceAlign,          // face_align (boolean)
-                    true,               // background_enhance (boolean)
-                    faceUpsample,       // face_upsample (boolean)
-                    4.0,                // upscale factor (float)
-                    0.6                 // codeformer_fidelity (float)
-                ]);
-            } catch (firstError) {
-                console.warn("Primary space failed or busy, trying fallback space...", firstError);
-                app = await getGradioApp(true);
-                console.log(`Calling fallback cloud GPU API for ${modelId}...`);
-                result = await app.predict("/inference", [
-                    processedFile,       // image (File object)
-                    faceAlign,          // face_align (boolean)
-                    true,               // background_enhance (boolean)
-                    faceUpsample,       // face_upsample (boolean)
-                    4.0,                // upscale factor (float)
-                    0.6                 // codeformer_fidelity (float)
-                ]);
+            const formData = new FormData();
+            formData.append('file', processedFile);
+            formData.append('model_id', modelSelect.value);
+
+            console.log("Sending upscale request to serverless backend...");
+            const response = await fetch('/api/upscale', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.detail || 'Upscaling failed.');
             }
 
-            const outputImg = result.data[0];
-            if (!outputImg || (!outputImg.url && !outputImg.data)) {
-                throw new Error("Invalid output received from cloud service.");
-            }
-
-            // Resolve URL (handles absolute, relative, or base64 data)
-            let imageUrl = outputImg.url;
-            if (!imageUrl && outputImg.data) {
-                imageUrl = outputImg.data;
-            }
-            if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
-                imageUrl = `https://sczhou-codeformer.hf.space${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
-            }
-
-            // Fetch the image to convert it into a local object URL to bypass CORS during download
-            const imageResponse = await fetch(imageUrl);
-            const imageBlob = await imageResponse.blob();
+            const imageBlob = await response.blob();
             
             // Cleanup previous result url if any
             if (upscaledObjectUrl) URL.revokeObjectURL(upscaledObjectUrl);
