@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClarityAI - Super Resolution Image Upscaler</title>
+    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <nav class="brutalist-nav">
+            <div class="nav-brand">
+                <span class="brand-square">■</span>
+                <span class="brand-name">ClarityAI</span>
+                <span class="brand-separator">|</span>
+                <span class="brand-tagline">Image upscaling and face restoration</span>
+            </div>
+            <div class="nav-actions">
+                <span class="nav-version">v1.0</span>
+            </div>
+        </nav>
+
+        <main>
+            <!-- Upload and Settings Section -->
+            <section class="control-panel">
+                <!-- Step 1: Upload Card -->
+                <div class="card upload-card" id="dropzone">
+                    <input type="file" id="file-input" accept="image/*" class="hidden-input">
+                    <div class="upload-content" id="upload-prompt">
+                        <div class="upload-icon">📤</div>
+                        <h3>Drag & drop your image here</h3>
+                        <p>or <span class="browse-btn">browse file</span></p>
+                        <p class="file-limits">Supports JPG, PNG, WEBP (Max 5MB recommended)</p>
+                    </div>
+                    <div class="preview-container hidden" id="preview-container">
+                        <img id="source-preview" alt="Source preview">
+                        <button class="remove-btn" id="remove-btn">✕</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Settings & Action Card -->
+                <div class="card settings-card">
+                    <h2>Upscale Settings</h2>
+                    
+                    <div class="form-group">
+                        <label for="model-select">Select AI Model</label>
+                        <select id="model-select">
+                            <option value="codeformer-ultra-4x" selected>ClarityAI Ultra 4K (CodeFormer + Real-ESRGAN 4x - Recommended)</option>
+                            <option value="realesrgan-clean-4x">ClarityAI Anime/Art (Real-ESRGAN 4x - Best for illustrations & graphics)</option>
+                        </select>
+                        <p class="model-description" id="model-desc">
+                            Uses cloud GPUs to restore faces (CodeFormer) and upscale the background (Real-ESRGAN) to 4K resolution. Ideal for photos, portraits, and general scenes.
+                        </p>
+                    </div>
+
+                    <button class="btn btn-primary" id="upscale-btn" disabled>
+                        <span>Upscale Image</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Loading Indicator -->
+            <section class="loading-section hidden" id="loading-section">
+                <div class="loader"></div>
+                <h3>Processing Image...</h3>
+                <p>Running super-resolution and restoring details. First-time runs may take longer as the model weights load. Please wait.</p>
+                <div class="progress-container">
+                    <div class="progress-bar"></div>
+                </div>
+            </section>
+
+            <!-- Results Section (Comparison Slider) -->
+            <section class="results-section hidden" id="results-section">
+                <div class="card results-card">
+                    <div class="results-header">
+                        <h2>Result</h2>
+                        <a id="download-btn" class="btn btn-secondary" download="upscaled.png">
+                            Download Upscaled Image
+                        </a>
+                    </div>
+                    
+                    <!-- Side-by-side comparison slider -->
+                    <div class="comparison-slider" id="slider-container">
+                        <!-- Before Image (Source) -->
+                        <img id="slider-before" src="" alt="Original Image" class="slider-image">
+                        
+                        <!-- After Image (Upscaled) -->
+                        <div class="slider-after-container" id="slider-after-container">
+                            <img id="slider-after" src="" alt="Upscaled Image" class="slider-image">
+                        </div>
+
+                        <!-- Divider / Handle -->
+                        <div class="slider-handle" id="slider-handle">
+                            <div class="handle-line"></div>
+                            <div class="handle-button">
+                                <span>↔</span>
+                            </div>
+                            <div class="handle-line"></div>
+                        </div>
+
+                        <!-- Badges -->
+                        <span class="badge badge-before">Original</span>
+                        <span class="badge badge-after">Upscaled AI</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>ClarityAI Image Upscaler • 100% Free, Open-Source & Secure</p>
+        </footer>
+    </div>
+    <script type="module" src="script.js?v=7"></script>
+</body>
+</html>
