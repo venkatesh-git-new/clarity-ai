@@ -34,7 +34,7 @@ async def debug_image():
     temp_path = None
     try:
         # Download a low-res face image from Hugging Face Space inputs
-        low_res_url = "https://huggingface.co/spaces/sczhou/CodeFormer/resolve/main/inputs/cropped_faces/0010.png"
+        low_res_url = "https://huggingface.co/spaces/sczhou/CodeFormer/resolve/main/CodeFormer/assets/restoration_result1.png"
         temp_path = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
         print(f"Downloading test face image from {low_res_url}...")
         urllib.request.urlretrieve(low_res_url, temp_path)
