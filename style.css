@@ -577,6 +577,22 @@ select option {
     font-weight: 700;
 }
 
+/* Resolution Metadata Info Box */
+.resolution-info {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--border-color);
+}
+
+.resolution-info span {
+    color: var(--text-main);
+    font-weight: 600;
+}
+
 /* Helper Utilities */
 .hidden {
     display: none !important;

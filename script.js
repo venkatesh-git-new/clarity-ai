@@ -156,6 +156,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // Populate images into comparison slider
             sliderBefore.src = originalObjectUrl;
             sliderAfter.src = upscaledObjectUrl;
+
+            // Fetch and display image dimensions
+            const imgOriginal = new Image();
+            imgOriginal.src = originalObjectUrl;
+            imgOriginal.onload = () => {
+                document.getElementById('res-original').textContent = `${imgOriginal.naturalWidth} x ${imgOriginal.naturalHeight} px`;
+            };
+
+            const imgUpscaled = new Image();
+            imgUpscaled.src = upscaledObjectUrl;
+            imgUpscaled.onload = () => {
+                document.getElementById('res-upscaled').textContent = `${imgUpscaled.naturalWidth} x ${imgUpscaled.naturalHeight} px`;
+            };
             
             // Set download details
             downloadBtn.href = upscaledObjectUrl;
