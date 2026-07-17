@@ -159,12 +159,21 @@ document.addEventListener('DOMContentLoaded', () => {
             ]);
 
             const outputImg = result.data[0];
-            if (!outputImg || !outputImg.url) {
+            if (!outputImg || (!outputImg.url && !outputImg.data)) {
                 throw new Error("Invalid output received from cloud service.");
             }
 
+            // Resolve URL (handles absolute, relative, or base64 data)
+            let imageUrl = outputImg.url;
+            if (!imageUrl && outputImg.data) {
+                imageUrl = outputImg.data;
+            }
+            if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+                imageUrl = `https://sczhou-codeformer.hf.space${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+            }
+
             // Fetch the image to convert it into a local object URL to bypass CORS during download
-            const imageResponse = await fetch(outputImg.url);
+            const imageResponse = await fetch(imageUrl);
             const imageBlob = await imageResponse.blob();
             
             // Cleanup previous result url if any
