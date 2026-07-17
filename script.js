@@ -26,55 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let upscaledObjectUrl = null;
     let originalObjectUrl = null;
 
-    // Client-side image compression / downscaling helper to prevent GPU timeouts & HF rate limits
-    async function preprocessImage(file, maxDimension = 1600) {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => {
-                let width = img.width;
-                let height = img.height;
-                
-                if (width <= maxDimension && height <= maxDimension) {
-                    resolve(file);
-                    return;
-                }
-                
-                if (width > height) {
-                    if (width > maxDimension) {
-                        height = Math.round((height * maxDimension) / width);
-                        width = maxDimension;
-                    }
-                } else {
-                    if (height > maxDimension) {
-                        width = Math.round((width * maxDimension) / height);
-                        height = maxDimension;
-                    }
-                }
-                
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                canvas.toBlob((blob) => {
-                    const originalName = file.name.substring(0, file.name.lastIndexOf('.'));
-                    const processedFile = new File([blob], `${originalName}_preprocessed.jpg`, {
-                        type: 'image/jpeg',
-                        lastModified: Date.now()
-                    });
-                    resolve(processedFile);
-                }, 'image/jpeg', 0.92);
-            };
-            
-            img.onerror = () => {
-                resolve(file);
-            };
-            
-            img.src = URL.createObjectURL(file);
-        });
-    }
 
     const modelDescriptions = {
         'codeformer-ultra-4x': 'Uses cloud GPUs to restore faces (CodeFormer) and upscale the background (Real-ESRGAN) to 4K resolution. Ideal for photos, portraits, and general scenes.',
@@ -180,12 +131,8 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsSection.classList.add('hidden');
 
         try {
-            // Preprocess/downscale image client-side to prevent timeouts and HF rate limits
-            console.log("Preprocessing image client-side...");
-            const processedFile = await preprocessImage(selectedFile, 1600);
-
             const formData = new FormData();
-            formData.append('file', processedFile);
+            formData.append('file', selectedFile);
             formData.append('model_id', modelSelect.value);
 
             console.log("Sending upscale request to serverless backend...");
