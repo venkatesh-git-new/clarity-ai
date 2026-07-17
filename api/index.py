@@ -1,5 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 import io
 import tempfile
 import os
@@ -23,6 +23,41 @@ def get_gradio_client(use_fallback=False):
             print("Connecting to primary space (sczhou/CodeFormer)...")
             _gradio_client = Client("sczhou/CodeFormer")
         return _gradio_client
+
+@app.get("/api/debug")
+async def debug():
+    logs = []
+    try:
+        logs.append("Starting debug test...")
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            from PIL import Image
+            img = Image.new("RGB", (100, 100), color="white")
+            img.save(f.name)
+            temp_path = f.name
+        
+        logs.append(f"Created temp image: {temp_path}")
+        
+        logs.append("Connecting to sczhou/CodeFormer...")
+        client = get_gradio_client(use_fallback=False)
+        
+        logs.append("Calling predict on sczhou/CodeFormer...")
+        result = client.predict(
+            image=handle_file(temp_path),
+            face_align=True,
+            background_enhance=True,
+            face_upsample=True,
+            upscale=4.0,
+            codeformer_fidelity=0.6,
+            api_name="/inference"
+        )
+        logs.append(f"SUCCESS! Result: {str(result)}")
+        return {"status": "success", "logs": logs}
+    except Exception as e:
+        import traceback
+        err_msg = traceback.format_exc()
+        logs.append(f"FAILED: {str(e)}")
+        logs.append(err_msg)
+        return JSONResponse(status_code=500, content={"status": "error", "logs": logs})
 
 @app.post("/api/upscale")
 async def upscale(
@@ -89,14 +124,12 @@ async def upscale(
                         image=handle_file(temp_path),
                         api_name="/predict"
                     )
-                    # For leonelhs/CodeFormer, index 0 is the original and index 1 is the enhanced output
                     output_img_path = result[1]
                 except Exception as err3:
                     print(f"Fallback space failed: {str(err3)}")
                     last_err = err3
 
         if output_img_path is None:
-            # Raise the final error encountered
             raise last_err
             
         with open(output_img_path, "rb") as f:
