@@ -76,6 +76,7 @@ async def debug():
     logs = []
     try:
         logs.append("Starting debug test...")
+        logs.append(f"HF_TOKEN present: {os.environ.get('HF_TOKEN') is not None}")
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
             from PIL import Image
             img = Image.new("RGB", (100, 100), color="white")
